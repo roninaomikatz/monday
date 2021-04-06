@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+    <title>Weather Dashboard</title>
+    <head>
+    <link rel="stylesheet" href="styling.css">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Contrail+One">
+        
+    </head>
+    
+    
+    <body>
+        <div id="dashboard-container">
+            <div id="dashboard-header">
+                <img id="monday" src="images/Monday.png" alt="monday.logo">
+                <div id="title"><h3>Weather Dashboard</h3></div>
+                <div id="logo"><img id="weather" src="images/weatherlogo.png" alt="weather.logo"></div>
+            
+            </div>
+            <div id="dashboard-content">
+                <div id="city-searchbox">
+                    <input id="city" type="search" placeholder="Search for a city..." />
+                    <button id="btn" type="submit" onclick="getWeatherDetails()">Go</button> 
+                    
+                </div>
+
+                
+            <div id="weather-details-display">
+                <div id='error' hidden>
+                    <img>
+                    <p></p>
+                </div>
+                <div id='details'>
+                    <div class='details-box'>
+                        <p id ="date"></p>
+                        <p id ="day"></p>
+                        <p id ="time"></p>
+                    </div>
+                    <div class='details-box'>
+                        <p id ="celsius-temp"></p>
+                        <p id ="kelvin-temp"></p>
+                        <p id ="humidity"></p>
+                    </div>
+                    <div class='details-box'>
+                        <img id='weather-img'>
+                    </div>
+            
+                </div>
+                
+                </div>
+                
+            </div>
+            
+            
+                    <div id='thingsToDo'>
+                    <h4 id='top5-title'></h4>
+                    
+                
+                </div>
+
+        
+        </div>
+    
+        
+<script>
+    
+function getWeatherDetails(){
+//    This function uses fetch to request openWeather API and handels errors that migt occur.
+    // it gets the city name inserted by the user and uses this as the param to request the API 
+    // in order to avoid displaying the last details presented along with an error that might occur, i used the hidden attr and played with its display settings.
+    //in case there's an error, the function will present the error and won't continue to the function that displayes the weather details. only in case we don't encounter any error, the function returns the response in a json format and sends the data to the function that displayes the weather details.
+    var rmvElement=document.getElementById('thingsToDoList'); //check if div of google things to do search exists, if so - remove so we override the last result
+    if (rmvElement!=null || rmvElement!=undefined)
+        rmvElement.parentNode.removeChild(rmvElement);
+    var cityName=document.getElementById("city").value;
+      var key = '6d98e05b00ad1f995019919227a05198';
+     fetch('https://api.openweathermap.org/data/2.5/weather?q=' + cityName+ '&appid=' + key)
+    .then(function(resp) { 
+         if(resp.status==404){
+             console.log("Bad request 404 - wrong API request, or wrong city name");
+             document.getElementById('error').innerHTML = "<span><img id='error-img' src='images/error.png'></span> Please check the city name you specified - Note that city names conatining more than one word should contain space";
+             document.getElementById('error').hidden=false;
+             document.getElementById('details').hidden=true;
+
+             return;
+         }
+        if(resp.status==401){
+           console.log("Wrong API details - Either wrong API key, or the key is yet to be activated, or you haven't specified any API key, or free account trying to get access to paid services");
+             document.getElementById('error').innerHTML = "<span><img id='error-img' src='images/error.png'></span> Something went wrong, Please contact your Admin";
+             document.getElementById('error').hidden=false;
+             document.getElementById('details').hidden=true;
+
+             return;
+           }
+         
+        if(resp.status==429){
+           console.log("Too many requests");
+             document.getElementById('error').innerHTML = " <span><img id='error-img' src='images/error.png'></span> Too many requests, please contact your admin";
+             document.getElementById('error').hidden=false;
+             document.getElementById('details').hidden=true;
+
+             return;
+           }
+         
+         
+         document.getElementById('error').hidden=true;
+         document.getElementById('details').hidden=false;
+         return resp.json() 
+     
+})
+     
+	.then(function(data) {
+		insertWeatherDetails(data);
+	})
+    
+  .catch(function() {
+    console.log("An error has occured")
+  });
+}
+
+     
+function insertWeatherDetails(weatherData){
+    //this function gets the data resulted by openWeather API as a param and uses the json format to pull the relevant data
+    var weatherStatus=weatherData.weather[0].main;
+    var kelvin= weatherData.main.temp;
+    var celcius = Math.round(parseFloat(kelvin)-273.15);
+    var humidity=weatherData.main.humidity;
+    var timezone=weatherData.timezone;
+    //manipulating the timezone to get the month, the day in the week and the hour so we can also display the current time at the place the user searched for. i created a function to calculate the current time that returns a date object, so in here i'm turning the date object details to string and displaying it by innerHTML
+    document.getElementById('date').innerHTML = getTimeDateByTimezone(timezone).toLocaleString('default', { month: 'long' })+" "+getTimeDateByTimezone(timezone).getDate();
+    
+
+    document.getElementById('day').innerHTML = getTimeDateByTimezone(timezone).toLocaleString('default', { weekday: 'long' });
+    
+    
+    document.getElementById('time').innerHTML = getTimeDateByTimezone(timezone).toLocaleTimeString('default', { hour: '2-digit', minute: '2-digit' });
+    
+    //displaying the details by innerHTML
+    
+    document.getElementById('celsius-temp').innerHTML = celcius+'&#176;';
+	document.getElementById('kelvin-temp').innerHTML = kelvin+'&#8490;';
+	document.getElementById('humidity').innerHTML = humidity+'%';
+    
+    //displaying the relevant weather pic by using an additional function i created.
+    document.getElementById('weather-img').src=checkWeatherImg(weatherStatus);
+    
+    //calling a function that displays things to do at the searched location in specific weather conditions, we send the weather satatus and the requested location.
+    thigsToDo(weatherStatus,weatherData.name);
+}
+    
+function checkWeatherImg(weatherStatus){
+    // this function gets the weather status and according to it, specifies the img source within a variable that will be eventually presented.
+    var weatherImg;
+    if(weatherStatus=="Clear")
+        weatherImg='images/sun.png';
+    
+    else if(weatherStatus=="Clouds")
+        weatherImg='images/clouds.png';
+   else if(weatherStatus=="Rain")
+        weatherImg='images/rain.png';
+    else if(weatherStatus=="Snow")
+        weatherImg='images/snow.png';
+    else{
+        weatherImg='images/unknown.png';
+    }
+    
+    return weatherImg;
+}
+    
+function getTimeDateByTimezone(timezone){
+    //this function gets the timezone number from the function that calls the API and calculates the time and the date at a specific location. it returns a date object that i use to display the time. 
+    d = new Date();
+    localTime = d.getTime(); //returns the current time in my location in epoch time 
+    localOffset = d.getTimezoneOffset() * 60000;
+    utc = localTime + localOffset;
+    var currentTime = utc + (1000 * timezone);
+    nd = new Date(currentTime);
+    return nd;
+}
+    
+function thigsToDo(weather, location){
+    //this function calls an serphouse api so we cn query google via API to get the thigns you can do in a certain weather conditions at the specific location. It first  determines the query based on the location and the weather status. 
+    var q;
+    var url = new URL("https://api.serphouse.com/serp/live");
+    if (weather=='Rain')
+        q="things to do in "+location+" when it rains";
+    else if (weather=='Clouds')
+        q="things to do in "+location+" when it's cloudy";
+    else if (weather=='Snow')
+        q="things to do in "+location+" when it's snowing";
+    else if (weather=='Clear')
+        q="things to do in "+location+" when it's sunny";
+    else
+        q="things to do in "+location;
+        
+    document.getElementById('top5-title').innerHTML='Google top 5 results loading...<span><img src="images/loading.gif"></span>';
+    
+    var params = {
+            "q": q,
+            "domain": "google.com",
+            "lang": "en",
+            "device": "desktop",
+            "serp_type": "web",
+            "page": "1",
+            "api_token": "diYe0xDrLZMCqNKyvqe9Z6zUixo4yLeNNZKjuJQgVdGU7J4x1OiECzhfr0aT",
+        };
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+
+var headers = {
+    "Authorization": "Bearer {diYe0xDrLZMCqNKyvqe9Z6zUixo4yLeNNZKjuJQgVdGU7J4x1OiECzhfr0aT}",
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+}
+
+fetch(url,{
+   method: "GET",
+    headers: headers, 
+})
+    
+.then(function(resp) { 
+        return resp.json() 
+         })
+
+.then(function(data) {
+        document.getElementById('top5-title').innerHTML='Google top 5 results- '+q;
+        fetchResults(data);
+	})
+.catch(function() {
+    console.log("An error has occured")
+  });
+}
+    
+function fetchResults(qData){
+    //this function displayes top 5 google results in a list by adding html elements.
+    var thingsToDo=document.getElementById("thingsToDo");
+    var list=document.createElement('ul');
+    list.id='thingsToDoList';
+    thingsToDo.appendChild(list);
+    for (i=0;i<5;i++){
+        var listItem=document.createElement("li");
+        var res = document.createElement('a');
+        var linkText = document.createTextNode(qData.results.results.organic[i].title);
+        res.appendChild(linkText);
+        res.href = qData.results.results.organic[i].link;
+        res.target="_blank";
+        list.appendChild(listItem);
+        listItem.appendChild(res);
+        
+    }
+    
+}
+
+  </script>
+        
+        
+    </body>
+
+</html>
